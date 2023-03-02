@@ -3,11 +3,13 @@ package ch.fhnw.apm.docfinder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.DoubleStream;
 
 public class DocFinderPerfTester {
 
-    private static final int REPETITIONS = 100;
+    private static final int REPETITIONS = 500;
     public static final String SEARCH_TEXT = "woman friend cat";
 
     public static void main(String[] args) throws IOException {
@@ -17,14 +19,14 @@ public class DocFinderPerfTester {
                     "Make sure to run this program in the doc-finder directory.");
             System.exit(1);
         }
-
+        List<Result> finds = new ArrayList<>();
         var finder = new DocFinder(booksDir, 16);
 
         var latencies = new double[REPETITIONS];
         for (int i = 0; i < REPETITIONS; i++) {
             var startTime = System.nanoTime();
 
-            finder.findDocs(SEARCH_TEXT);
+            finds = finder.findDocs(SEARCH_TEXT);
 
             var latency = System.nanoTime() - startTime;
             latencies[i] = latency / 1_000_000.0; // convert to ms
@@ -39,6 +41,17 @@ public class DocFinderPerfTester {
         for (int i = 0; i < REPETITIONS; i++) {
             System.out.printf("%.1f\n", latencies[i]);
         }
+
+        //        for (Result result : finds) {
+        //            String output = result.getDoc().toString().substring(79) + "\n";
+        //
+        //            for (String key : result.getSearchHits().keySet()) {
+        //                output += result.totalHits() + "\n";
+        //            }
+        //
+        //            System.out.println(output);
+        //        }
+
         System.out.println();
 
         var stats = DoubleStream.of(latencies).summaryStatistics();

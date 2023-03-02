@@ -43,10 +43,13 @@ public class DocFinder {
 
         var results = synchronizedList(new ArrayList<Result>());
 
+        searchText = toLowerCase(searchText);
+        var searchTerms = parseSearchText(searchText);
+
         var tasks = new ArrayList<Callable<Void>>();
         for (var doc : allDocs) {
             tasks.add(() -> {
-                var res = findInDoc(searchText, doc);
+                var res = findInDoc(searchTerms, doc);
                 if (res.totalHits() > 0) {
                     results.add(res);
                 }
@@ -75,7 +78,16 @@ public class DocFinder {
                 && attr.size() <= sizeLimit;
     }
 
-    private Result findInDoc(String searchText, Path doc) throws IOException {
+    private Result findInDoc(List<String> searchTerms, Path doc) throws IOException {
+        var text = readString(doc);
+        var normalized = normalizeText(text);
+
+        var searchHits = findInText(searchTerms, normalized);
+        var relevance = computeRelevance(searchHits, normalized);
+        return new Result(doc, searchHits, relevance);
+    }
+
+    private String readString(Path doc) throws IOException {
         String text;
         try {
             text = Files.readString(doc);
@@ -84,18 +96,26 @@ public class DocFinder {
             text = "";
         }
 
+        return text;
+    }
+
+    private String normalizeText(String text) {
         // normalize text: collapse whitespace and convert to lowercase
-        var collapsed = text.replaceAll("\\p{javaWhitespace}+", " ");
+        var collapsed = replace(text);
         var normalized = collapsed;
         if (ignoreCase) {
-            normalized = collapsed.toLowerCase(Locale.ROOT);
-            searchText = searchText.toLowerCase(Locale.ROOT);
+            normalized = toLowerCase(collapsed);
         }
+        return normalized;
+    }
 
-        var searchTerms = parseSearchText(searchText);
-        var searchHits = findInText(searchTerms, normalized);
-        var relevance = computeRelevance(searchHits, normalized);
-        return new Result(doc, searchHits, relevance);
+    private String replace(String text) {
+        //        return text.replaceAll("\\p{javaWhitespace}+", " ");
+        return text;
+    }
+
+    private String toLowerCase(String string) {
+        return string.toLowerCase(Locale.ROOT);
     }
 
     private List<String> parseSearchText(String searchText) {
@@ -137,7 +157,7 @@ public class DocFinder {
                 .mapToDouble(List::size)
                 .average().orElse(1);
         var termsWithHits = searchHits.values().stream()
-                .filter(list -> list.size() > 0)
+                .filter(list -> !list.isEmpty())
                 .count();
         var termHitRatio = (double) termsWithHits / searchHits.size();
         return Math.pow(avgHits + 1, termHitRatio) / text.length() * 1_000_000;
