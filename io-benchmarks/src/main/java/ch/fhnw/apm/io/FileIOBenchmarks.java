@@ -1,12 +1,20 @@
 package ch.fhnw.apm.io;
 
-import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.io.BufferedOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -17,13 +25,13 @@ import java.util.Set;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.newOutputStream;
 
+@State(Scope.Benchmark)
 public class FileIOBenchmarks {
-
-    private static final Path BASE_DIR = Path.of("files");
+    private static final Path BASE_DIR = Path.of("io-benchmarks/files");
 
     private static final Set<Integer> FILE_SIZES = Set.of(
             5_000_000,
-            50_000_000,
+            51_000_000,
             250_000_000);
 
     static {
@@ -58,18 +66,64 @@ public class FileIOBenchmarks {
         return BASE_DIR.resolve("file-" + size + ".bin");
     }
 
+//    @Param({"5000000", "51000000", "250000000"})
+    public int fileByte = 5000000;
+
+    //    @Benchmark
+    //    @BenchmarkMode(Mode.SampleTime)
+    //    @Warmup(iterations = 1)
+    //    @Measurement(iterations = 2)
+    //    public int read0() throws IOException {
+    //        System.out.println("InputStream and file size: " + fileByte);
+    //        try (var in = Files.newInputStream(file(fileByte))) {
+    //            int byteZeroCount = 0;
+    //            int b;
+    //            while ((b = in.read()) >= 0) {
+    //                if (b == 0) {
+    //                    byteZeroCount++;
+    //                }
+    //            }
+    //            return byteZeroCount;
+    //        }
+    //    }
+    //
+    //    @Benchmark
+    //    @BenchmarkMode(Mode.SampleTime)
+    //    @Warmup(iterations = 1)
+    //    @Measurement(iterations = 2)
+    //    public int read1() throws IOException {
+    //        System.out.println("BufferedInputStream and file size: " + fileByte);
+    //        try (var in = new BufferedInputStream(Files.newInputStream(file(fileByte)))) {
+    //            int byteZeroCount = 0;
+    //            int b;
+    //            while ((b = in.read()) >= 0) {
+    //                if (b == 0) {
+    //                    byteZeroCount++;
+    //                }
+    //            }
+    //            return byteZeroCount;
+    //        }
+    //    }
+
+
+    @Param({"8192", "16384", "32768"})
+    private int bufferSize;
+
     @Benchmark
     @BenchmarkMode(Mode.SampleTime)
     @Warmup(iterations = 1)
-    @Measurement(iterations = 5)
-    public int read() throws IOException {
-        try (var in = Files.newInputStream(file(5_000_000))) {
+    @Measurement(iterations = 2)
+    public int read2() throws IOException {
+        try (var in = Files.newInputStream(file(fileByte))) {
             int byteZeroCount = 0;
-            int b;
-            while ((b = in.read()) >= 0) {
-                if (b == 0) {
-                    byteZeroCount++;
+            var buffer = in.readNBytes(bufferSize);
+            while (buffer.length != 0) {
+                for (byte b : buffer) {
+                    if (b == 0) {
+                        byteZeroCount++;
+                    }
                 }
+                buffer = in.readNBytes(8192);
             }
             return byteZeroCount;
         }
