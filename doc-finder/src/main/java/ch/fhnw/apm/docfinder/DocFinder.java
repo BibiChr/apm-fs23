@@ -23,6 +23,7 @@ public class DocFinder {
     private int maxDepth = Integer.MAX_VALUE;
     private long sizeLimit = 1_000_000_000; // 1 GB
     private boolean ignoreCase = true;
+
     private final ExecutorService pool;
 
     public DocFinder(Path rootDir) {
@@ -31,7 +32,7 @@ public class DocFinder {
 
     public DocFinder(Path rootDir, int parallelism) {
         this.rootDir = requireNonNull(rootDir);
-        pool = Executors.newFixedThreadPool(parallelism, r -> {
+        this.pool = Executors.newFixedThreadPool(parallelism, r -> {
             var thread = new Thread(r);
             thread.setDaemon(true);
             return thread;
@@ -66,6 +67,32 @@ public class DocFinder {
 
         return results;
     }
+
+//    public List<Result> findDocs(String searchText) throws IOException {
+//        var allDocs = collectDocs();
+//
+//        var results = synchronizedList(new ArrayList<Result>());
+//
+//        var tasks = new ArrayList<Callable<Void>>();
+//        for (var doc : allDocs) {
+//            tasks.add(() -> {
+//                var res = findInDoc(searchText, doc);
+//                if (res.totalHits() > 0) {
+//                    results.add(res);
+//                }
+//                return null;
+//            });
+//        }
+//        try {
+//            pool.invokeAll(tasks);
+//        } catch (InterruptedException e) {
+//            throw new AssertionError(e);
+//        }
+//
+//        results.sort(comparing(Result::getRelevance, reverseOrder()));
+//
+//        return results;
+//    }
 
     private List<Path> collectDocs() throws IOException {
         try (var docs = Files.find(rootDir, maxDepth, this::include)) {
